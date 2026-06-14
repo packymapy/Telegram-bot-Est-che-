@@ -199,7 +199,7 @@ CREATE TABLE products (
     category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
     name VARCHAR(255) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    details JSONB NOT NULL,  -- в PostgreSQL лучше JSONB (быстрее и можно индексировать)
+    details JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE);
@@ -361,6 +361,8 @@ INSERT INTO categories (name, sort_order) VALUES
 <br>
 
 #### Таблица товара
+
+![Adex](https://vape-shop43.ru/uploads/thumbs/webp/rc/SlQl0c4j/uploads/1-/1-69736dd14f1b8380157479.webp)
 
 ```sql
 INSERT INTO products (category_id, name, price, details) VALUES (
@@ -557,6 +559,6 @@ SET
 WHERE city_id = (SELECT id FROM cities WHERE name = 'Сыктывкар');
 ```
 
-#### Для внесения изменений необхоимо просто поменять нужные данные из запросов выше.
+#### Для внесения изменений необходимо просто поменять нужные данные из запросов выше.
 
 <br>
