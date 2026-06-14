@@ -324,7 +324,7 @@ CREATE TRIGGER trigger_products_delete_log
 CREATE INDEX idx_products_category ON products(category_id);
 CREATE INDEX idx_products_active ON products(is_active);
 CREATE INDEX idx_products_price ON products(price);
-CREATE INDEX idx_products_details ON products USING GIN (details);  -- для быстрого поиска внутри JSONB
+CREATE INDEX idx_products_details ON products USING GIN (details);
 CREATE INDEX idx_products_name ON products(name);
 ```
 
