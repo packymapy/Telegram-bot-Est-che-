@@ -438,6 +438,8 @@ INSERT INTO cities (name) VALUES
 
 <br>
 
+#### Внесение данных по Кирову
+
 ```sql
 INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
 (
@@ -483,6 +485,8 @@ INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
 
 <br>
 
+#### Внесение данных по Сыктывкару
+
 ```sql
 INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
 (
@@ -507,6 +511,9 @@ INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
 ```
 
 ### Запрос обновления данных
+
+#### Обновление данных по Кирову
+
 ```sql
 UPDATE contacts 
 SET 
@@ -531,6 +538,8 @@ WHERE city_id = (SELECT id FROM cities WHERE name = 'Киров');
 
 <br>
 
+#### Обновление данных по Сыктывкару
+
 ```sql
 UPDATE contacts 
 SET 
@@ -547,3 +556,7 @@ SET
     updated_at = CURRENT_TIMESTAMP
 WHERE city_id = (SELECT id FROM cities WHERE name = 'Сыктывкар');
 ```
+
+<br>
+
+#### Для внесения изменений необхоимо просто поменять нужные данные из запросов выше.
