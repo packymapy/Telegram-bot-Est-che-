@@ -112,7 +112,7 @@
 
 <br>
 
-## Определение необходимых таблиц
+## Определение необходимых таблиц (товар)
 
 ### Таблицы и их данные
 
@@ -382,3 +382,168 @@ INSERT INTO products (category_id, name, price, details) VALUES (
 
 ==================================
 
+<br>
+
+## Определение необходимых таблиц (другое)
+
+### Таблица пользователей
+
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    tg_id BIGINT NOT NULL UNIQUE,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    username VARCHAR(100),
+    birthday DATE,
+    city_id INTEGER REFERENCES cities(id) ON DELETE SET NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
+    is_blocked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+```
+
+<br>
+
+### Таблица городов
+
+```sql
+CREATE TABLE cities (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE);
+```
+
+<br>
+
+### Таблица контактных данных
+
+```sql
+CREATE TABLE contacts (
+    id SERIAL PRIMARY KEY,
+    city_id INTEGER NOT NULL REFERENCES cities(id) ON DELETE CASCADE,
+    email VARCHAR(255),
+    social_links JSONB NOT NULL,
+    phones JSONB NOT NULL', 
+    addresses JSONB NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+```
+
+### Тестовые данные
+
+```sql
+INSERT INTO cities (name) VALUES
+('Сыктывкар'),
+('Киров');
+```
+
+<br>
+
+```sql
+INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
+(
+    (SELECT id FROM cities WHERE name = 'Киров'),
+    'magazinestche@gmail.com',
+    jsonb_build_object(
+        'vk', 'https://vk.com/hqd_pods_original',
+        'telegram', 'https://t.me/est_che_43'
+    ),
+    '["+79123379797"]'::JSONB,
+    '[
+        {
+            "address": "Герцена 87а",
+            "schedule": "ежедневно 11:00–23:00"
+        },
+        {
+            "address": "Преображенская 57",
+            "schedule": "ежедневно 10:00–22:00"
+        },
+        {
+            "address": "Воровского 137/1",
+            "schedule": "ежедневно 10:00–22:00"
+        },
+        {
+            "address": "Ленина 102а",
+            "schedule": "ежедневно 10:00–22:00"
+        },
+        {
+            "address": "Пролетарская 22а",
+            "schedule": "ежедневно 10:00–00:00"
+        },
+        {
+            "address": "Советская 39",
+            "schedule": "ежедневно 10:00–22:00"
+        },
+        {
+            "address": "Луганская 53/2",
+            "schedule": "ежедневно 10:00–21:00"
+        }
+    ]'::JSONB
+);
+```
+
+<br>
+
+```sql
+INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
+(
+    (SELECT id FROM cities WHERE name = 'Сыктывкар'),
+    'magazinestche@gmail.com',
+    jsonb_build_object(
+        'vk', 'https://vk.com/est_che_store11',
+        'telegram', 'https://t.me/est_che_11'
+    ),
+    '["+79539434455"]'::JSONB,
+    '[
+        {
+            "address": "Коммунистическая 19",
+            "schedule": "ежедневно 10:00–22:00"
+        },
+        {
+            "address": "Бумажников 53 Д",
+            "schedule": "ежедневно 10:00–22:00"
+        }
+    ]'::JSONB
+);
+```
+
+### Запрос обновления данных
+```sql
+UPDATE contacts 
+SET 
+    email = 'magazinestche@gmail.com',
+    social_links = jsonb_build_object(
+        'vk', 'https://vk.com/hqd_pods_original',
+        'telegram', 'https://t.me/est_che_43'
+    ),
+    phones = '["+79123379797"]'::JSONB,
+    addresses = '[
+        {"address": "Герцена 87а", "schedule": "ежедневно 11:00–23:00"},
+        {"address": "Преображенская 57", "schedule": "ежедневно 10:00–22:00"},
+        {"address": "Воровского 137/1", "schedule": "ежедневно 10:00–22:00"},
+        {"address": "Ленина 102а", "schedule": "ежедневно 10:00–22:00"},
+        {"address": "Пролетарская 22а", "schedule": "ежедневно 10:00–00:00"},
+        {"address": "Советская 39", "schedule": "ежедневно 10:00–22:00"},
+        {"address": "Луганская 53/2", "schedule": "ежедневно 10:00–21:00"}
+    ]'::JSONB,
+    updated_at = CURRENT_TIMESTAMP
+WHERE city_id = (SELECT id FROM cities WHERE name = 'Киров');
+```
+
+<br>
+
+```sql
+UPDATE contacts 
+SET 
+    email = 'magazinestche@gmail.com',
+    social_links = jsonb_build_object(
+        'vk', 'https://vk.com/est_che_store11',
+        'telegram', 'https://t.me/est_che_11'
+    ),
+    phones = '["+79539434455"]'::JSONB,
+    addresses = '[
+        {"address": "Коммунистическая 19", "schedule": "ежедневно 10:00–22:00"},
+        {"address": "Бумажников 53 Д", "schedule": "ежедневно 10:00–22:00"}
+    ]'::JSONB,
+    updated_at = CURRENT_TIMESTAMP
+WHERE city_id = (SELECT id FROM cities WHERE name = 'Сыктывкар');
+```
