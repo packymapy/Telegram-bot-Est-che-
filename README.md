@@ -14,7 +14,12 @@
 
 ### 2. Бот предлагает выбрать город (Сыктывкар / Киров)
 
-!!! ***После ввода даты рождения предупредить, что мы можем попросить паспорт при продаже*** !!!
+
+======================================================================
+
+***!!!*** ***После ввода даты рождения предупредить, что мы можем попросить паспорт при продаже*** ***!!!***
+
+======================================================================
 
 <br>
 
@@ -48,7 +53,7 @@
 
 =========================================================
 
-**!!!** &nbsp; ***На каждой категории должно быть краткое описание / предупреждение*** &nbsp; **!!!**
+***!!!*** &nbsp; ***На каждой категории должно быть краткое описание / предупреждение*** &nbsp; ***!!!***
 
 =========================================================
 
@@ -69,9 +74,9 @@
 
 =========================================================
 
-**!!!** &nbsp; ***Дату рождения можно поменять (если указали с ошибкой)*** &nbsp; **!!!**
+***!!!*** &nbsp; ***Дату рождения можно поменять (если указали с ошибкой)*** &nbsp; ***!!!***
 
-**!!!** &nbsp; ***Город можно поменять*** &nbsp; **!!!**
+***!!!*** &nbsp; ***Город можно поменять*** &nbsp; ***!!!***
 
 =========================================================
 
@@ -109,40 +114,271 @@
 
 ## Определение необходимых таблиц
 
-### Для правильной работы базы данных необходимы:
+### Таблицы и их данные
 
-#### 1. Таблица пользователей
+#### Таблица categories
 
-#### 2. Таблица категорий товаров
+|Поле | Тип | Ограничения | Описание
+|-----|-----|-------------|---------
+|id | SERIAL (INTEGER) | PRIMARY KEY | Первичный ключ
+|name | VARCHAR(100) | NOT NULL, UNIQUE | Название категории
+|sort_order | INTEGER | DEFAULT 0 | Порядок сортировки
+|created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Дата создания
 
-#### 3. Таблица товаров
+<br> 
 
-#### 4. Таблица контактной информации
+***Индексы: Автоматический индекс по PRIMARY KEY (id)***
 
-#### 5. Таблица городов
+<br>
+
+#### Таблица products
+
+|Поле | Тип | Ограничения | Описание
+|-----|-----|-------------|---------
+|id | SERIAL | PRIMARY KEY | Первичный ключ
+|category_id | INTEGER | NOT NULL, FOREIGN KEY → categories(id) | Ссылка на категорию
+|name | VARCHAR(255) | NOT NULL | Название товара
+|price | DECIMAL(10,2) | NOT NULL | Цена
+|details | JSONB | NOT NULL | Характеристики (JSONB)
+|created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Дата создания
+|updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP (auto-update) | Дата изменения
+|is_active | BOOLEAN | DEFAULT TRUE | Активен ли товар
 
 <br>
 
-### Формат хранения
+***Индексы***
 
-#### Таблица пользователей
-
-| id  | name  |  birthday  | city_id 
-|-----|-------|------------|--------
-|  1  |  Имя  | 01.07.2006 |   1
+|Имя индекса | Поле(я) | Тип
+|------------|-----------|---------
+|idx_products_category | category_id | B-tree
+|idx_products_active | is_active | B-tree
+|idx_products_price | price | B-tree
+|idx_products_details | details | GIN
+|idx_products_name | name | B-tree
 
 <br>
+
+#### Таблица products_log
+
+|Поле | Тип | Ограничения | Описание
+|-----|-----|-------------|---------
+|id | SERIAL | PRIMARY KEY | Первичный ключ
+|product_id | INTEGER | NOT NULL, FOREIGN KEY → products(id) | Ссылка на товар
+|action | VARCHAR(10) | CHECK (action IN (...)) | insert / update / delete
+|old_data | JSONB | NULL | Данные до изменения
+|new_data | JSONB | NULL | Данные после изменения
+|changed_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Время изменения
+
+<br>
+
+***Индексы***
+
+|Имя индекса | Поле(я) | Тип
+|------------|---------|---------
+|products_log_pkey | id | B-tree
+|idx_product (авто) | product_id | B-tree
+|idx_changed_at | changed_at | B-tree
+
+<br>
+
+### Запросы на создение таблиц
+
+```sql
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+```
+
+<br>
+
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    details JSONB NOT NULL,  -- в PostgreSQL лучше JSONB (быстрее и можно индексировать)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE);
+```
+
+<br>
+
+```sql
+CREATE TABLE products_log (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    action VARCHAR(10) NOT NULL CHECK (action IN ('insert', 'update', 'delete')),
+    old_data JSONB,
+    new_data JSONB,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+```
+
+<br>
+
+### Запросы на создание функций и триггеров 
+
+```sql
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+<br>
+
+```sql
+CREATE TRIGGER trigger_products_updated_at
+    BEFORE UPDATE ON products
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+```
+
+<br>
+
+```sql
+CREATE OR REPLACE FUNCTION log_products_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO products_log (product_id, action, new_data)
+    VALUES (
+        NEW.id,
+        'insert',
+        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details));
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+<br>
+
+```sql
+CREATE TRIGGER trigger_products_insert_log
+    AFTER INSERT ON products
+    FOR EACH ROW
+    EXECUTE FUNCTION log_products_insert();
+```
+
+<br>
+
+```sql
+CREATE OR REPLACE FUNCTION log_products_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO products_log (product_id, action, old_data, new_data)
+    VALUES (
+        NEW.id,
+        'update',
+        jsonb_build_object('name', OLD.name, 'price', OLD.price, 'details', OLD.details),
+        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details));
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+<br>
+
+```sql
+CREATE TRIGGER trigger_products_update_log
+    AFTER UPDATE ON products
+    FOR EACH ROW
+    EXECUTE FUNCTION log_products_update();
+```
+
+<br>
+
+```sql
+CREATE OR REPLACE FUNCTION log_products_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO products_log (product_id, action, old_data)
+    VALUES (
+        OLD.id,
+        'delete',
+        jsonb_build_object('name', OLD.name, 'price', OLD.price, 'details', OLD.details));
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+<br>
+
+```sql
+CREATE TRIGGER trigger_products_delete_log
+    BEFORE DELETE ON products
+    FOR EACH ROW
+    EXECUTE FUNCTION log_products_delete();
+```
+
+<br>
+
+### Создание индексов
+
+```sql
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_products_active ON products(is_active);
+CREATE INDEX idx_products_price ON products(price);
+CREATE INDEX idx_products_details ON products USING GIN (details);  -- для быстрого поиска внутри JSONB
+CREATE INDEX idx_products_name ON products(name);
+```
+
+<br>
+
+### Тестовые данные
 
 #### Таблица категорий товаров
 
-| id  | name | warning_text
-|-----|------|--------------
-|  1  |  ЖТ  | На всех товарах, представленных в этом разделе, присутствует маркировка госсистемы "Честный знак". Изделия не являются снюсом! 
+```sql
+INSERT INTO categories (name, sort_order) VALUES
+('Жевательный табак', 1),
+('Жидкости', 2),
+('Жидкости без никотина', 3),
+('Ароматизаторы', 4),
+('Одноразовые устройства', 5),
+('Табак для кальяна', 6),
+('Расходные материалы', 7),
+('ЭСДН', 8),
+('Сигариллы и альтернатива', 9),
+('Напитки и снэки', 10),
+('Баки, моды и аксессуары', 11),
+('Ликвидация', 12);
+```
 
 <br>
 
-#### Таблица товаров
+===================================
 
-#### Таблица контактной информации
+***!!!*** ***Информация взята со [страницы каталога]([https://vape-shop43.ru/catalog/zhevatelnyi-tabak/adex-1](https://vape-shop43.ru/catalog))*** ***!!!***
 
-#### Таблица городов
+===================================
+
+<br>
+
+#### Таблица товара
+
+```sql
+INSERT INTO products (category_id, name, price, details) VALUES (
+    1,
+    'ADEX',
+    520.00,
+    '{
+    "strength": ["Strong", "Medium"],
+    "size": ["Wide", "Slim", "Mini"],
+    "flavors": ["Ice Mint", "Cold Dry", "Ice Cool", "Eucaliptus"]
+    }'::JSONB);
+```
+
+<br>
+
+==================================
+
+***!!!*** ***Информация взята со [страницы товара](https://vape-shop43.ru/catalog/zhevatelnyi-tabak/adex-1)*** ***!!!***
+
+==================================
+
