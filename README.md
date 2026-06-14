@@ -354,7 +354,7 @@ INSERT INTO categories (name, sort_order) VALUES
 
 ===================================
 
-***!!!*** ***Информация взята со [страницы каталога]([https://vape-shop43.ru/catalog/zhevatelnyi-tabak/adex-1](https://vape-shop43.ru/catalog))*** ***!!!***
+***!!!*** ***Информация взята со [страницы каталога](https://vape-shop43.ru/catalog)*** ***!!!***
 
 ===================================
 
