@@ -15,6 +15,7 @@ CREATE TABLE categories (
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     details JSONB NOT NULL,
@@ -23,7 +24,7 @@ CREATE TABLE products (
     is_active BOOLEAN DEFAULT TRUE);
 ```
 
-!!! ## Таблица логов товаров
+## Таблица логов товаров
 
 ```sql
 CREATE TABLE products_log (
@@ -41,6 +42,16 @@ CREATE TABLE products_log (
 CREATE TABLE cities (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE);
+```
+
+## Таблица брендов
+
+```sql
+CREATE TABLE brands (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE
+);
 ```
 
 ## Таблица пользователей
@@ -101,6 +112,7 @@ CREATE INDEX idx_products_active ON products(is_active);
 CREATE INDEX idx_products_price ON products(price);
 CREATE INDEX idx_products_details ON products USING GIN (details);
 CREATE INDEX idx_products_name ON products(name);
+CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
 ```
 
 ## Индексы для таблицы users
@@ -133,6 +145,13 @@ CREATE INDEX idx_admins_full_name ON admins(full_name);
 
 ```sql
 CREATE INDEX idx_contacts_city ON contacts(city_id);
+```
+
+## Индексы для таблицы brands
+
+```sql
+CREATE INDEX idx_brands_name ON brands(name);
+CREATE INDEX idx_brands_category ON brands(category_id);
 ```
 
 <br>
@@ -188,7 +207,12 @@ BEGIN
     VALUES (
         NEW.id,
         'insert',
-        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details));
+        jsonb_build_object(
+            'name', NEW.name, 
+            'price', NEW.price, 
+            'details', NEW.details,
+            'category_id', NEW.category_id,
+            'brand_id', NEW.brand_id));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -213,8 +237,18 @@ BEGIN
     VALUES (
         NEW.id,
         'update',
-        jsonb_build_object('name', OLD.name, 'price', OLD.price, 'details', OLD.details),
-        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details));
+        jsonb_build_object(
+            'name', OLD.name, 
+            'price', OLD.price, 
+            'details', OLD.details,
+            'category_id', OLD.category_id,
+            'brand_id', OLD.brand_id),
+        jsonb_build_object(
+            'name', NEW.name, 
+            'price', NEW.price, 
+            'details', NEW.details,
+            'category_id', NEW.category_id,
+            'brand_id', NEW.brand_id));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -239,7 +273,12 @@ BEGIN
     VALUES (
         OLD.id,
         'delete',
-        jsonb_build_object('name', OLD.name, 'price', OLD.price, 'details', OLD.details));
+        jsonb_build_object(
+            'name', OLD.name, 
+            'price', OLD.price, 
+            'details', OLD.details,
+            'category_id', OLD.category_id,
+            'brand_id', OLD.brand_id));
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
@@ -438,3 +477,64 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 ```
+
+## Функция получения брендов для конкретной категории
+
+```sql
+CREATE OR REPLACE FUNCTION get_brands_by_category(p_category_id INTEGER)
+RETURNS TABLE(
+    brand_id INTEGER,
+    brand_name VARCHAR,
+    product_count BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        b.id,
+        b.name,
+        COUNT(p.id)::BIGINT
+    FROM brands b
+    LEFT JOIN products p ON p.brand_id = b.id AND p.is_active = true
+    WHERE b.category_id = p_category_id AND b.is_active = true
+    GROUP BY b.id, b.name
+    ORDER BY b.sort_order, b.name;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Поиск товаров по категории и бренду
+
+```sql
+CREATE OR REPLACE FUNCTION search_products_by_category_brand(
+    p_category_id INTEGER DEFAULT NULL,
+    p_brand_id INTEGER DEFAULT NULL,
+    p_search TEXT DEFAULT NULL
+)
+RETURNS TABLE(
+    product_id INTEGER,
+    product_name VARCHAR,
+    brand_name VARCHAR,
+    price DECIMAL,
+    details JSONB
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        p.id,
+        p.name,
+        b.name,
+        p.price,
+        p.details
+    FROM products p
+    LEFT JOIN brands b ON b.id = p.brand_id
+    WHERE (p_category_id IS NULL OR p.category_id = p_category_id)
+        AND (p_brand_id IS NULL OR p.brand_id = p_brand_id)
+        AND (p_search IS NULL OR p.name ILIKE '%' || p_search || '%')
+        AND p.is_active = true
+    ORDER BY b.sort_order NULLS LAST, p.name;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+
+
