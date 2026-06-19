@@ -45,15 +45,17 @@ INSERT INTO brands (name, category_id) VALUES
 ![Adex](https://vape-shop43.ru/uploads/thumbs/webp/rc/SlQl0c4j/uploads/1-/1-69736dd14f1b8380157479.webp)
 
 ```sql
-INSERT INTO products (category_id, name, price, details) VALUES (
+INSERT INTO products (category_id, name, image_url, price, details, is_active) VALUES (
     1,
     'ADEX',
+    'https://vape-shop43.ru/catalog/zhevatelnyi-tabak/adex-1',
     520.00,
     '{
         "strength": ["Strong", "Medium"],
         "size": ["Wide", "Slim", "Mini"],
         "flavors": ["Ice Mint", "Cold Dry", "Ice Cool", "Eucaliptus"]
-    }'::JSONB
+    }'::JSONB,
+    TRUE
 );
 ```
 
