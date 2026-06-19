@@ -1,5 +1,7 @@
 # Категории товаров
 
+## Информация взята со [страницы каталога](https://vape-shop43.ru/catalog)
+
 ```sql
 INSERT INTO categories (name, sort_order) VALUES
 ('Жевательный табак', 1),
@@ -17,6 +19,10 @@ INSERT INTO categories (name, sort_order) VALUES
 ```
 
 # Тестовый товар
+
+## Информация взята со [страницы товара](https://vape-shop43.ru/catalog/zhevatelnyi-tabak/adex-1)
+
+![Adex](https://vape-shop43.ru/uploads/thumbs/webp/rc/SlQl0c4j/uploads/1-/1-69736dd14f1b8380157479.webp)
 
 ```sql
 INSERT INTO products (category_id, name, price, details) VALUES (
@@ -40,7 +46,10 @@ INSERT INTO cities (name) VALUES
 ON CONFLICT (name) DO NOTHING;
 ```
 
-# Контакты для Кирова
+# Контактная информация
+
+## Информация взята со [страницы контактов](https://vape-shop43.ru/contacts)
+## Контакты для Кирова
 
 ```sql
 INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
@@ -85,7 +94,7 @@ INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
 );
 ```
 
-# Контакты для Сыктывкара
+## Контакты для Сыктывкара
 
 ```sql
 INSERT INTO contacts (city_id, email, social_links, phones, addresses) VALUES
