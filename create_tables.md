@@ -17,6 +17,7 @@ CREATE TABLE products (
     category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
     brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
+    image_url VARCHAR(500),
     price DECIMAL(10,2) NOT NULL,
     details JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -112,7 +113,8 @@ CREATE INDEX idx_products_active ON products(is_active);
 CREATE INDEX idx_products_price ON products(price);
 CREATE INDEX idx_products_details ON products USING GIN (details);
 CREATE INDEX idx_products_name ON products(name);
-CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
+CREATE INDEX idx_products_brand ON products(brand_id);
+CREATE INDEX idx_products_image_url ON products(image_url);
 ```
 
 ## Индексы для таблицы users
@@ -212,7 +214,8 @@ BEGIN
             'price', NEW.price, 
             'details', NEW.details,
             'category_id', NEW.category_id,
-            'brand_id', NEW.brand_id));
+            'brand_id', NEW.brand_id,
+            'image_url', NEW.image_url));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -242,13 +245,15 @@ BEGIN
             'price', OLD.price, 
             'details', OLD.details,
             'category_id', OLD.category_id,
-            'brand_id', OLD.brand_id),
+            'brand_id', OLD.brand_id,
+            'image_url', OLD.image_url),
         jsonb_build_object(
             'name', NEW.name, 
             'price', NEW.price, 
             'details', NEW.details,
             'category_id', NEW.category_id,
-            'brand_id', NEW.brand_id));
+            'brand_id', NEW.brand_id,
+            'image_url', NEW.image_url));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -278,7 +283,8 @@ BEGIN
             'price', OLD.price, 
             'details', OLD.details,
             'category_id', OLD.category_id,
-            'brand_id', OLD.brand_id));
+            'brand_id', OLD.brand_id,
+            'image_url', OLD.image_url));
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
