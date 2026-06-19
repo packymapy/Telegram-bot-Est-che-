@@ -64,9 +64,10 @@ INSERT INTO products (category_id, name, image_url, price, details, is_active) V
 ![Sonder Q](https://vape-shop43.ru/uploads/thumbs/default/rc/v6rGj6u2/uploads/so/sonder-q-6494140bbd23a457336613.jpg)
 
 ```sql
-INSERT INTO products (category_id, name, image_url, price, details, brand_id, is_active) VALUES (
+INSERT INTO products (category_id, name, description, image_url, price, details, brand_id, is_active) VALUES (
     8,
     'Sonder Q',
+    'Sonder Q - изящная капсула в нестареющем дизайне в полоску, предназначенная для ежедневного отдыха.\nДля того, чтобы начать путешествие с мягким вкусом, не нужно нажимать кнопку, и наполнять его сверху не составит труда.\nПолучайте удовольствие, настраивая различные хиты с помощью переключателя воздушного потока,\nи расслабляйтесь, пока для вас ярко горит лампочка "SONDER".\n\n• Работа на Q картриджах;( новые)\n• Автоматическая затяжка ( кнопка отсутствует );\n• Максимальная мощность 20 ватт;\n• Регулировка обдува находится сбоку;\n• Батарея ёмкостью 1000mAh;\n• Надпись Sonder подсвечивается и является индикатором заряда;\n• Вес 39.1г;\n• Зарядный порт - Type-C, находится сбоку.\n\nКомплектация\n- Sonder Q mod\n- сменный картридж 0.8Ω (предустановлен)\n- руководство пользователя';
     'https://vape-shop43.ru/uploads/thumbs/default/rc/v6rGj6u2/uploads/so/sonder-q-6494140bbd23a457336613.jpg',
     1340.00,
     '{
