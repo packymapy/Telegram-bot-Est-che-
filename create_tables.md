@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS cities (
 );
 ```
 
-## Таблица пользователей (исправлена - убран is_admin)
+## Таблица пользователей
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(100),
     birthday DATE,
     city_id INTEGER REFERENCES cities(id) ON DELETE SET NULL,
+    is_verified BOOLEAN DEFAULT FALSE,
     agreed_to_terms BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -85,7 +86,9 @@ CREATE TABLE IF NOT EXISTS admins (
     id SERIAL PRIMARY KEY,
     login VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(200) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
+    is_locked BOOLEAN DEFAULT FALSE,
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -107,14 +110,14 @@ CREATE INDEX IF NOT EXISTS idx_products_details ON products USING GIN (details);
 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
 ```
 
-## Индексы для таблицы users (исправлены)
+## Индексы для таблицы users
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_users_tg_id ON users(tg_id);
 CREATE INDEX IF NOT EXISTS idx_users_city ON users(city_id);
-CREATE INDEX IF NOT EXISTS idx_users_is_blocked ON users(is_blocked);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_users_is_verified ON users(is_verified);
 ```
 
 ## Индексы для таблицы products_log
@@ -130,6 +133,7 @@ CREATE INDEX IF NOT EXISTS idx_products_log_action ON products_log(action);
 ```sql
 CREATE INDEX IF NOT EXISTS idx_admins_login ON admins(login);
 CREATE INDEX IF NOT EXISTS idx_admins_is_active ON admins(is_active);
+CREATE INDEX IF NOT EXISTS idx_admins_full_name ON admins(full_name);
 ```
 
 ## Индексы для таблицы contacts
@@ -234,7 +238,7 @@ CREATE TRIGGER trigger_products_update_log
     EXECUTE FUNCTION log_products_update();
 ```
 
--- Функция логирования удаления товаров
+## Функция логирования удаления товаров
 
 ```sql
 CREATE OR REPLACE FUNCTION log_products_delete()
@@ -286,7 +290,6 @@ BEGIN
         p_permissions
     )
     RETURNING id INTO v_admin_id;
-    
     RETURN v_admin_id;
 END;
 $$ LANGUAGE plpgsql;
@@ -301,21 +304,24 @@ CREATE OR REPLACE FUNCTION authenticate_admin(
 )
 RETURNS TABLE(
     admin_id INTEGER,
+    full_name VARCHAR,
     permissions JSONB,
-    is_active BOOLEAN
+    is_active BOOLEAN,
+    is_locked BOOLEAN
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT 
         a.id,
+        a.full_name,
         a.permissions,
-        a.is_active
+        a.is_active,
+        a.is_locked
     FROM admins a
     WHERE a.login = p_login
         AND a.password_hash = crypt(p_password, a.password_hash)
-        AND a.is_active = true;
-    
-    -- Обновляем время последнего входа при успешной аутентификации
+        AND a.is_active = true
+        AND a.is_locked = false;
     IF FOUND THEN
         UPDATE admins 
         SET last_login = CURRENT_TIMESTAMP 
@@ -339,9 +345,113 @@ BEGIN
     SELECT (permissions->>p_permission)::BOOLEAN
     INTO v_permission
     FROM admins
-    WHERE login = p_login AND is_active = true;
-    
+    WHERE login = p_login 
+        AND is_active = true 
+        AND is_locked = false;
     RETURN COALESCE(v_permission, false);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция создания администратора
+
+```sql
+CREATE OR REPLACE FUNCTION create_admin(
+    p_login VARCHAR,
+    p_password VARCHAR,
+    p_full_name VARCHAR,
+    p_permissions JSONB DEFAULT '{}'::JSONB
+)
+RETURNS INTEGER AS $$
+DECLARE
+    v_admin_id INTEGER;
+BEGIN
+    INSERT INTO admins (login, password_hash, full_name, is_active, permissions)
+    VALUES (
+        p_login,
+        crypt(p_password, gen_salt('bf')),
+        p_full_name,
+        TRUE,
+        p_permissions
+    )
+    RETURNING id INTO v_admin_id;
+    RETURN v_admin_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция проверки блокировки администратора
+
+```sql
+CREATE OR REPLACE FUNCTION check_admin_status(p_login VARCHAR)
+RETURNS TABLE(
+    is_active BOOLEAN,
+    is_locked BOOLEAN
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        a.is_active,
+        a.is_locked
+    FROM admins a
+    WHERE a.login = p_login;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция блокировки администратора
+
+```sql
+CREATE OR REPLACE FUNCTION lock_admin(p_login VARCHAR)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE admins 
+    SET is_locked = true
+    WHERE login = p_login AND is_active = true;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция разблокировки администратора
+
+```sql
+CREATE OR REPLACE FUNCTION unlock_admin(p_login VARCHAR)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE admins 
+    SET is_locked = false
+    WHERE login = p_login;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция деактивации администратора
+
+```sql
+CREATE OR REPLACE FUNCTION deactivate_admin(p_login VARCHAR)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE admins 
+    SET is_active = false
+    WHERE login = p_login;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция активация администратора
+
+```sql
+CREATE OR REPLACE FUNCTION activate_admin(p_login VARCHAR)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE admins 
+    SET is_active = true,
+        is_locked = false
+    WHERE login = p_login;
+    RETURN FOUND;
 END;
 $$ LANGUAGE plpgsql;
 ```
