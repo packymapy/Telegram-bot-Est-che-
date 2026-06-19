@@ -64,9 +64,10 @@ INSERT INTO products (category_id, name, image_url, price, details, is_active) V
 ![Sonder Q](https://vape-shop43.ru/uploads/thumbs/default/rc/v6rGj6u2/uploads/so/sonder-q-6494140bbd23a457336613.jpg)
 
 ```sql
-INSERT INTO products (category_id, name, price, details, brand_id, is_active) VALUES (
+INSERT INTO products (category_id, name, image_url, price, details, brand_id, is_active) VALUES (
     8,
     'Sonder Q',
+    'https://vape-shop43.ru/uploads/thumbs/default/rc/v6rGj6u2/uploads/so/sonder-q-6494140bbd23a457336613.jpg',
     1340.00,
     '{
         "colors": ["Black", "Grey", "Green", "Green Purple", "Violet Purple", 
