@@ -18,6 +18,26 @@ INSERT INTO categories (name, sort_order) VALUES
 ('Ликвидация', 12);
 ```
 
+# Бренды товаров
+
+## Информация взята со [страницы каталога ЭСДН](https://vape-shop43.ru/catalog/esdn)
+
+```sql
+INSERT INTO brands (name, category_id) VALUES
+('Geekvape', 8),
+('Brusko', 8),
+('Eleaf', 8),
+('Smoant', 8),
+('Lostvape', 8),
+('Nevoks', 8),
+('Rincoe', 8),
+('Smok', 8),
+('Vaporesso', 8),
+('Voopoo', 8),
+('VandyVape', 8),
+('Plonq', 8);
+```
+
 # Тестовый товар
 
 ## Информация взята со [страницы товара](https://vape-shop43.ru/catalog/zhevatelnyi-tabak/adex-1)
@@ -37,13 +57,31 @@ INSERT INTO products (category_id, name, price, details) VALUES (
 );
 ```
 
+## Информация взята со [страницы товара](https://vape-shop43.ru/catalog/esdn/geek-vape-sonder-q)
+
+![Sonder Q](https://vape-shop43.ru/uploads/thumbs/default/rc/v6rGj6u2/uploads/so/sonder-q-6494140bbd23a457336613.jpg)
+
+```sql
+INSERT INTO products (category_id, name, price, details, brand_id, is_active) VALUES (
+    8,
+    'Sonder Q',
+    1340.00,
+    '{
+        "colors": ["Black", "Grey", "Green", "Green Purple", "Violet Purple", 
+                   "Red Blue", "Rose Pink", "Sky Blue", "White", "Stellar White", 
+                   "Blue Whisper", "Starry Night", "Purple Mist", "Mystic Nebula"]
+    }'::JSONB,
+    1,
+    TRUE
+);
+```
+
 # Города
 
 ```sql
 INSERT INTO cities (name) VALUES
 ('Киров'),
-('Сыктывкар')
-ON CONFLICT (name) DO NOTHING;
+('Сыктывкар');
 ```
 
 # Контактная информация
