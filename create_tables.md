@@ -17,6 +17,7 @@ CREATE TABLE products (
     category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
     brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
+    description TEXT,
     image_url VARCHAR(500),
     price DECIMAL(10,2) NOT NULL,
     details JSONB NOT NULL,
@@ -115,6 +116,7 @@ CREATE INDEX idx_products_details ON products USING GIN (details);
 CREATE INDEX idx_products_name ON products(name);
 CREATE INDEX idx_products_brand ON products(brand_id);
 CREATE INDEX idx_products_image_url ON products(image_url);
+CREATE INDEX idx_products_description ON products USING GIN (to_tsvector('russian', description));
 ```
 
 ## Индексы для таблицы users
@@ -215,7 +217,10 @@ BEGIN
             'details', NEW.details,
             'category_id', NEW.category_id,
             'brand_id', NEW.brand_id,
-            'image_url', NEW.image_url));
+            'image_url', NEW.image_url,
+            'description', NEW.description
+        )
+    );
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -246,14 +251,16 @@ BEGIN
             'details', OLD.details,
             'category_id', OLD.category_id,
             'brand_id', OLD.brand_id,
-            'image_url', OLD.image_url),
+            'image_url', OLD.image_url,
+            'description', OLD.description),
         jsonb_build_object(
             'name', NEW.name, 
             'price', NEW.price, 
             'details', NEW.details,
             'category_id', NEW.category_id,
             'brand_id', NEW.brand_id,
-            'image_url', NEW.image_url));
+            'image_url', NEW.image_url,
+            'description', NEW.description));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -284,7 +291,8 @@ BEGIN
             'details', OLD.details,
             'category_id', OLD.category_id,
             'brand_id', OLD.brand_id,
-            'image_url', OLD.image_url));
+            'image_url', OLD.image_url,
+            'description', OLD.description));
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
