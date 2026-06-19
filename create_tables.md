@@ -2,18 +2,17 @@
 ## Таблица категорий товаров
 
 ```sql
-CREATE TABLE IF NOT EXISTS categories (
+CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     sort_order INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
 ```
 
 ## Таблица товаров
 
 ```sql
-CREATE TABLE IF NOT EXISTS products (
+CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
     name VARCHAR(255) NOT NULL,
@@ -21,36 +20,33 @@ CREATE TABLE IF NOT EXISTS products (
     details JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE
-);
+    is_active BOOLEAN DEFAULT TRUE);
 ```
 
-## Таблица логов товаров
+!!! ## Таблица логов товаров
 
 ```sql
-CREATE TABLE IF NOT EXISTS products_log (
+CREATE TABLE products_log (
     id SERIAL PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     action VARCHAR(10) NOT NULL CHECK (action IN ('insert', 'update', 'delete')),
     old_data JSONB,
     new_data JSONB,
-    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
 ```
 
 ## Таблица городов
 
 ```sql
-CREATE TABLE IF NOT EXISTS cities (
+CREATE TABLE cities (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE
-);
+    name VARCHAR(100) NOT NULL UNIQUE);
 ```
 
 ## Таблица пользователей
 
 ```sql
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     tg_id BIGINT NOT NULL UNIQUE,
     first_name VARCHAR(100),
@@ -61,28 +57,26 @@ CREATE TABLE IF NOT EXISTS users (
     is_verified BOOLEAN DEFAULT FALSE,
     agreed_to_terms BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
 ```
 
 ## Таблица контактов
 
 ```sql
-CREATE TABLE IF NOT EXISTS contacts (
+CREATE TABLE contacts (
     id SERIAL PRIMARY KEY,
     city_id INTEGER NOT NULL REFERENCES cities(id) ON DELETE CASCADE,
     email VARCHAR(255),
     social_links JSONB NOT NULL,
     phones JSONB NOT NULL,
     addresses JSONB NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
 ```
 
 ## Таблица администраторов
 
 ```sql
-CREATE TABLE IF NOT EXISTS admins (
+CREATE TABLE admins (
     id SERIAL PRIMARY KEY,
     login VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -92,8 +86,7 @@ CREATE TABLE IF NOT EXISTS admins (
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    permissions JSONB DEFAULT '{}'::JSONB
-);
+    permissions JSONB DEFAULT '{}'::JSONB);
 ```
 
 <br>
@@ -103,43 +96,43 @@ CREATE TABLE IF NOT EXISTS admins (
 ## Индексы для таблицы products
 
 ```sql
-CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
-CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
-CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
-CREATE INDEX IF NOT EXISTS idx_products_details ON products USING GIN (details);
-CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_products_active ON products(is_active);
+CREATE INDEX idx_products_price ON products(price);
+CREATE INDEX idx_products_details ON products USING GIN (details);
+CREATE INDEX idx_products_name ON products(name);
 ```
 
 ## Индексы для таблицы users
 
 ```sql
-CREATE INDEX IF NOT EXISTS idx_users_tg_id ON users(tg_id);
-CREATE INDEX IF NOT EXISTS idx_users_city ON users(city_id);
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
-CREATE INDEX IF NOT EXISTS idx_users_is_verified ON users(is_verified);
+CREATE INDEX idx_users_tg_id ON users(tg_id);
+CREATE INDEX idx_users_city ON users(city_id);
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_created_at ON users(created_at);
+CREATE INDEX idx_users_is_verified ON users(is_verified);
 ```
 
 ## Индексы для таблицы products_log
 
 ```sql
-CREATE INDEX IF NOT EXISTS idx_products_log_product_id ON products_log(product_id);
-CREATE INDEX IF NOT EXISTS idx_products_log_changed_at ON products_log(changed_at);
-CREATE INDEX IF NOT EXISTS idx_products_log_action ON products_log(action);
+CREATE INDEX idx_products_log_product_id ON products_log(product_id);
+CREATE INDEX idx_products_log_changed_at ON products_log(changed_at);
+CREATE INDEX idx_products_log_action ON products_log(action);
 ```
 
 ## Индексы для таблицы admins
 
 ```sql
-CREATE INDEX IF NOT EXISTS idx_admins_login ON admins(login);
-CREATE INDEX IF NOT EXISTS idx_admins_is_active ON admins(is_active);
-CREATE INDEX IF NOT EXISTS idx_admins_full_name ON admins(full_name);
+CREATE INDEX idx_admins_login ON admins(login);
+CREATE INDEX idx_admins_is_active ON admins(is_active);
+CREATE INDEX idx_admins_full_name ON admins(full_name);
 ```
 
 ## Индексы для таблицы contacts
 
 ```sql
-CREATE INDEX IF NOT EXISTS idx_contacts_city ON contacts(city_id);
+CREATE INDEX idx_contacts_city ON contacts(city_id);
 ```
 
 <br>
@@ -195,8 +188,7 @@ BEGIN
     VALUES (
         NEW.id,
         'insert',
-        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details)
-    );
+        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -222,8 +214,7 @@ BEGIN
         NEW.id,
         'update',
         jsonb_build_object('name', OLD.name, 'price', OLD.price, 'details', OLD.details),
-        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details)
-    );
+        jsonb_build_object('name', NEW.name, 'price', NEW.price, 'details', NEW.details));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -248,8 +239,7 @@ BEGIN
     VALUES (
         OLD.id,
         'delete',
-        jsonb_build_object('name', OLD.name, 'price', OLD.price, 'details', OLD.details)
-    );
+        jsonb_build_object('name', OLD.name, 'price', OLD.price, 'details', OLD.details));
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
@@ -267,7 +257,7 @@ CREATE TRIGGER trigger_products_delete_log
 ## Расширение для хэширования паролей
 
 ```sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION pgcrypto;
 ```
 
 ## Функция создания администратора
@@ -276,8 +266,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE OR REPLACE FUNCTION create_admin(
     p_login VARCHAR,
     p_password VARCHAR,
-    p_permissions JSONB DEFAULT '{}'::JSONB
-)
+    p_permissions JSONB DEFAULT '{}'::JSONB)
 RETURNS INTEGER AS $$
 DECLARE
     v_admin_id INTEGER;
@@ -287,8 +276,7 @@ BEGIN
         p_login,
         crypt(p_password, gen_salt('bf')),
         TRUE,
-        p_permissions
-    )
+        p_permissions)
     RETURNING id INTO v_admin_id;
     RETURN v_admin_id;
 END;
@@ -300,8 +288,7 @@ $$ LANGUAGE plpgsql;
 ```sql
 CREATE OR REPLACE FUNCTION authenticate_admin(
     p_login VARCHAR,
-    p_password VARCHAR
-)
+    p_password VARCHAR)
 RETURNS TABLE(
     admin_id INTEGER,
     full_name VARCHAR,
@@ -336,8 +323,7 @@ $$ LANGUAGE plpgsql;
 ```sql
 CREATE OR REPLACE FUNCTION check_admin_permission(
     p_login VARCHAR,
-    p_permission VARCHAR
-)
+    p_permission VARCHAR)
 RETURNS BOOLEAN AS $$
 DECLARE
     v_permission BOOLEAN;
@@ -360,8 +346,7 @@ CREATE OR REPLACE FUNCTION create_admin(
     p_login VARCHAR,
     p_password VARCHAR,
     p_full_name VARCHAR,
-    p_permissions JSONB DEFAULT '{}'::JSONB
-)
+    p_permissions JSONB DEFAULT '{}'::JSONB)
 RETURNS INTEGER AS $$
 DECLARE
     v_admin_id INTEGER;
@@ -372,8 +357,7 @@ BEGIN
         crypt(p_password, gen_salt('bf')),
         p_full_name,
         TRUE,
-        p_permissions
-    )
+        p_permissions)
     RETURNING id INTO v_admin_id;
     RETURN v_admin_id;
 END;
@@ -386,8 +370,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION check_admin_status(p_login VARCHAR)
 RETURNS TABLE(
     is_active BOOLEAN,
-    is_locked BOOLEAN
-) AS $$
+    is_locked BOOLEAN) AS $$
 BEGIN
     RETURN QUERY
     SELECT 
