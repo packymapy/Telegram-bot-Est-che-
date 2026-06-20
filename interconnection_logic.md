@@ -59,9 +59,11 @@ erDiagram
         VARCHAR last_name
         VARCHAR username
         DATE birthday
-        INTEGER city_id FK
-        BOOLEAN is_verified
+        BOOLEAN age_verified
         BOOLEAN agreed_to_terms
+        INTEGER verification_attempts
+        TIMESTAMP blocked_until
+        INTEGER city_id FK
         TIMESTAMP created_at
         TIMESTAMP last_activity
     }
