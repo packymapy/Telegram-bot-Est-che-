@@ -125,12 +125,12 @@ CREATE INDEX idx_products_description ON products USING GIN (to_tsvector('russia
 ## Индексы для таблицы users
 
 ```sql
-CREATE idx_users_tg_id ON users(tg_id);
-CREATE idx_users_age_verified ON users(age_verified);
-CREATE idx_users_agreed_to_terms ON users(agreed_to_terms);
-CREATE idx_users_birth_date ON users(birth_date);
-CREATE idx_users_blocked_until ON users(blocked_until);
-CREATE idx_users_city ON users(city_id);
+CREATE INDEX idx_users_tg_id ON users(tg_id);
+CREATE INDEX idx_users_age_verified ON users(age_verified);
+CREATE INDEX idx_users_agreed_to_terms ON users(agreed_to_terms);
+CREATE INDEX idx_users_birth_date ON users(birth_date);
+CREATE INDEX idx_users_blocked_until ON users(blocked_until);
+CREATE INDEX idx_users_city ON users(city_id);
 ```
 
 ## Индексы для таблицы products_log
