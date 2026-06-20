@@ -65,12 +65,15 @@ CREATE TABLE users (
     first_name VARCHAR(100),
     last_name VARCHAR(100),
     username VARCHAR(100),
-    birthday DATE,
-    city_id INTEGER REFERENCES cities(id) ON DELETE SET NULL,
-    is_verified BOOLEAN DEFAULT FALSE,
+    birth_date DATE,
+    age_verified BOOLEAN DEFAULT FALSE,
     agreed_to_terms BOOLEAN DEFAULT FALSE,
+    verification_attempts INTEGER DEFAULT 0,
+    blocked_until TIMESTAMP,
+    city_id INTEGER REFERENCES cities(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ## Таблица контактов
@@ -122,11 +125,12 @@ CREATE INDEX idx_products_description ON products USING GIN (to_tsvector('russia
 ## Индексы для таблицы users
 
 ```sql
-CREATE INDEX idx_users_tg_id ON users(tg_id);
-CREATE INDEX idx_users_city ON users(city_id);
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_created_at ON users(created_at);
-CREATE INDEX idx_users_is_verified ON users(is_verified);
+CREATE idx_users_tg_id ON users(tg_id);
+CREATE idx_users_age_verified ON users(age_verified);
+CREATE idx_users_agreed_to_terms ON users(agreed_to_terms);
+CREATE idx_users_birth_date ON users(birth_date);
+CREATE idx_users_blocked_until ON users(blocked_until);
+CREATE idx_users_city ON users(city_id);
 ```
 
 ## Индексы для таблицы products_log
@@ -226,6 +230,132 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
+## Функция проверки возраста (>= 18 лет)
+
+```sql
+CREATE OR REPLACE FUNCTION is_adult(p_birth_date DATE)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXTRACT(YEAR FROM age(CURRENT_DATE, p_birth_date)) >= 18;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция получения возраста
+
+```sql
+CREATE OR REPLACE FUNCTION get_user_age(p_tg_id BIGINT)
+RETURNS INTEGER AS $$
+DECLARE
+    v_birth_date DATE;
+BEGIN
+    SELECT birth_date INTO v_birth_date
+    FROM users
+    WHERE tg_id = p_tg_id;
+    
+    IF v_birth_date IS NULL THEN
+        RETURN NULL;
+    END IF;
+    RETURN EXTRACT(YEAR FROM age(CURRENT_DATE, v_birth_date))::INTEGER;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция полной проверки доступа пользователя
+
+```sql
+CREATE OR REPLACE FUNCTION check_user_access(p_tg_id BIGINT)
+RETURNS TABLE(
+    can_access BOOLEAN,
+    reason TEXT,
+    age_verified BOOLEAN,
+    agreed_to_terms BOOLEAN,
+    is_blocked BOOLEAN,
+    attempts_left INTEGER,
+    block_until TIMESTAMP,
+    age INTEGER
+) AS $$
+DECLARE
+    v_user RECORD;
+BEGIN
+    SELECT 
+        u.age_verified,
+        u.agreed_to_terms,
+        u.blocked_until,
+        u.verification_attempts,
+        u.birth_date
+    INTO v_user
+    FROM users u
+    WHERE u.tg_id = p_tg_id;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 
+            false, 
+            'Пользователь не найден. Напишите /start'::TEXT,
+            false, false, false,
+            3,
+            NULL::TIMESTAMP,
+            NULL::INTEGER;
+        RETURN;
+    END IF;
+    IF v_user.blocked_until IS NOT NULL AND v_user.blocked_until > CURRENT_TIMESTAMP THEN
+        RETURN QUERY SELECT 
+            false, 
+            format('Аккаунт заблокирован до %s', to_char(v_user.blocked_until, 'DD.MM.YYYY HH24:MI'))::TEXT,
+            v_user.age_verified,
+            v_user.agreed_to_terms,
+            true,
+            0,
+            v_user.blocked_until,
+            NULL::INTEGER;
+        RETURN;
+    END IF;
+    IF v_user.birth_date IS NULL THEN
+        RETURN QUERY SELECT 
+            false, 
+            'Необходимо указать дату рождения'::TEXT,
+            false,
+            v_user.agreed_to_terms,
+            false,
+            3 - v_user.verification_attempts,
+            NULL::TIMESTAMP,
+            NULL::INTEGER;
+        RETURN;
+    END IF;
+    IF NOT is_adult(v_user.birth_date) THEN
+        RETURN QUERY SELECT 
+            false, 
+            'Вам должно быть 18+ лет для доступа к каталогу'::TEXT,
+            false,
+            v_user.agreed_to_terms,
+            false,
+            3 - v_user.verification_attempts,
+            NULL::TIMESTAMP,
+            EXTRACT(YEAR FROM age(CURRENT_DATE, v_user.birth_date))::INTEGER;
+        RETURN;
+    END IF;
+    IF NOT v_user.agreed_to_terms THEN
+        RETURN QUERY SELECT 
+            false, 
+            'Необходимо принять условия использования'::TEXT,
+            v_user.age_verified,
+            false,
+            false,
+            3 - v_user.verification_attempts,
+            NULL::TIMESTAMP,
+            EXTRACT(YEAR FROM age(CURRENT_DATE, v_user.birth_date))::INTEGER;
+        RETURN;
+    END IF;
+    RETURN QUERY SELECT 
+        true, 
+        'Доступ разрешен'::TEXT,
+        true, true, false,
+        3 - v_user.verification_attempts,
+        NULL::TIMESTAMP,
+        EXTRACT(YEAR FROM age(CURRENT_DATE, v_user.birth_date))::INTEGER;
+END;
+$$ LANGUAGE plpgsql;
+```
+
 ## Триггер логирования вставки товаров
 
 ```sql
@@ -266,6 +396,155 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
+## Функция установки даты рождения
+
+```sql
+CREATE OR REPLACE FUNCTION set_user_birth_date(
+    p_tg_id BIGINT,
+    p_birth_date DATE
+)
+RETURNS TABLE(
+    success BOOLEAN,
+    message TEXT,
+    is_adult BOOLEAN
+) AS $$
+DECLARE
+    v_is_adult BOOLEAN;
+BEGIN
+    v_is_adult := is_adult(p_birth_date);
+    UPDATE users 
+    SET 
+        birth_date = p_birth_date,
+        age_verified = v_is_adult,
+        verification_attempts = 0,
+        blocked_until = CASE 
+            WHEN NOT v_is_adult THEN CURRENT_TIMESTAMP + INTERVAL '60 minutes'
+            ELSE NULL
+        END
+    WHERE tg_id = p_tg_id;
+    IF FOUND THEN
+        IF v_is_adult THEN
+            RETURN QUERY SELECT 
+                true, 
+                'Дата рождения сохранена. Теперь примите условия использования.'::TEXT,
+                true;
+        ELSE
+            RETURN QUERY SELECT 
+                false, 
+                'Вам должно быть 18+ лет для доступа к каталогу. Аккаунт заблокирован на 60 минут.'::TEXT,
+                false;
+        END IF;
+    ELSE
+        RETURN QUERY SELECT 
+            false, 
+            'Пользователь не найден. Напишите /start'::TEXT,
+            false;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция принятия условий пользования
+
+```sql
+CREATE OR REPLACE FUNCTION accept_terms(p_tg_id BIGINT)
+RETURNS TABLE(
+    success BOOLEAN,
+    message TEXT
+) AS $$
+DECLARE
+    v_user RECORD;
+BEGIN
+    SELECT 
+        age_verified,
+        agreed_to_terms,
+        verification_attempts,
+        blocked_until
+    INTO v_user
+    FROM users
+    WHERE tg_id = p_tg_id;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 
+            false, 
+            'Пользователь не найден. Напишите /start'::TEXT;
+        RETURN;
+    END IF;
+    IF v_user.blocked_until IS NOT NULL AND v_user.blocked_until > CURRENT_TIMESTAMP THEN
+        RETURN QUERY SELECT 
+            false, 
+            format('Аккаунт заблокирован до %s', to_char(v_user.blocked_until, 'DD.MM.YYYY HH24:MI'))::TEXT;
+        RETURN;
+    END IF;
+    IF NOT v_user.age_verified THEN
+        RETURN QUERY SELECT 
+            false, 
+            'Сначала необходимо подтвердить возраст (18+)'::TEXT;
+        RETURN;
+    END IF;
+    UPDATE users 
+    SET agreed_to_terms = true
+    WHERE tg_id = p_tg_id;
+    RETURN QUERY SELECT 
+        true, 
+        'Условия использования приняты. Добро пожаловать!'::TEXT;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция отказа от условий пользования
+
+```sql
+CREATE OR REPLACE FUNCTION decline_terms(p_tg_id BIGINT)
+RETURNS TABLE(
+    success BOOLEAN,
+    message TEXT,
+    attempts_left INTEGER,
+    is_blocked BOOLEAN
+) AS $$
+DECLARE
+    v_user RECORD;
+    v_attempts INTEGER;
+BEGIN
+    SELECT 
+        verification_attempts,
+        agreed_to_terms
+    INTO v_user
+    FROM users
+    WHERE tg_id = p_tg_id;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 
+            false, 
+            'Пользователь не найден'::TEXT,
+            0,
+            false;
+        RETURN;
+    END IF;
+    v_attempts := v_user.verification_attempts + 1;
+    IF v_attempts >= 3 THEN
+        UPDATE users 
+        SET 
+            verification_attempts = v_attempts,
+            blocked_until = CURRENT_TIMESTAMP + INTERVAL '60 minutes'
+        WHERE tg_id = p_tg_id;
+        RETURN QUERY SELECT 
+            false, 
+            'Превышено количество попыток. Аккаунт заблокирован на 60 минут.'::TEXT,
+            0,
+            true;
+    ELSE
+        UPDATE users 
+        SET verification_attempts = v_attempts
+        WHERE tg_id = p_tg_id;
+        RETURN QUERY SELECT 
+            false, 
+            format('Условия не приняты. Осталось попыток: %s', 3 - v_attempts)::TEXT,
+            3 - v_attempts,
+            false;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
 ## Триггер логирования обновления товаров
 
 ```sql
@@ -294,6 +573,119 @@ BEGIN
             'image_url', OLD.image_url,
             'description', OLD.description));
     RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция получения статуса пользователя
+
+```sql
+CREATE OR REPLACE FUNCTION get_user_status(p_tg_id BIGINT)
+RETURNS TABLE(
+    age_verified BOOLEAN,
+    agreed_to_terms BOOLEAN,
+    is_blocked BOOLEAN,
+    attempts_used INTEGER,
+    attempts_left INTEGER,
+    age INTEGER,
+    block_until TIMESTAMP
+) AS $$
+DECLARE
+    v_user RECORD;
+BEGIN
+    SELECT 
+        u.age_verified,
+        u.agreed_to_terms,
+        u.blocked_until,
+        u.verification_attempts,
+        u.birth_date
+    INTO v_user
+    FROM users u
+    WHERE u.tg_id = p_tg_id;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 
+            false, false, false,
+            0, 3,
+            NULL::INTEGER,
+            NULL::TIMESTAMP;
+        RETURN;
+    END IF;
+    RETURN QUERY SELECT 
+        v_user.age_verified,
+        v_user.agreed_to_terms,
+        v_user.blocked_until IS NOT NULL AND v_user.blocked_until > CURRENT_TIMESTAMP,
+        v_user.verification_attempts,
+        3 - v_user.verification_attempts,
+        CASE 
+            WHEN v_user.birth_date IS NOT NULL 
+            THEN EXTRACT(YEAR FROM age(CURRENT_DATE, v_user.birth_date))::INTEGER
+            ELSE NULL
+        END,
+        v_user.blocked_until;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функциия сброса верификации (для повторной проверки)
+
+```sql
+CREATE OR REPLACE FUNCTION reset_verification(p_tg_id BIGINT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE users 
+    SET 
+        age_verified = false,
+        agreed_to_terms = false,
+        verification_attempts = 0,
+        blocked_until = NULL
+    WHERE tg_id = p_tg_id;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция разблокировки пользователя (для админов)
+
+```sql
+CREATE OR REPLACE FUNCTION unblock_user(p_tg_id BIGINT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE users 
+    SET 
+        blocked_until = NULL,
+        verification_attempts = 0
+    WHERE tg_id = p_tg_id;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция проверки существования пользователя
+
+```sql
+CREATE OR REPLACE FUNCTION user_exists(p_tg_id BIGINT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (SELECT 1 FROM users WHERE tg_id = p_tg_id);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Функция создания пользователя, если он не существует
+
+```sql
+CREATE OR REPLACE FUNCTION create_user_if_not_exists(
+    p_tg_id BIGINT,
+    p_first_name VARCHAR DEFAULT NULL,
+    p_last_name VARCHAR DEFAULT NULL,
+    p_username VARCHAR DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    INSERT INTO users (tg_id, first_name, last_name, username, created_at, last_activity)
+    VALUES (p_tg_id, p_first_name, p_last_name, p_username, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ON CONFLICT (tg_id) DO NOTHING;
+    RETURN FOUND;
 END;
 $$ LANGUAGE plpgsql;
 ```
@@ -336,6 +728,49 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
+## Триггер для обновления last_activity
+
+```sql
+CREATE OR REPLACE FUNCTION update_last_activity()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_activity = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+```sql
+CREATE TRIGGER trigger_users_last_activity
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_last_activity();
+```
+
+## Триггер для автоматической разблокировки
+
+```sql
+CREATE OR REPLACE FUNCTION auto_unblock_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.blocked_until IS NOT NULL 
+       AND OLD.blocked_until <= CURRENT_TIMESTAMP 
+       AND NEW.blocked_until IS NOT NULL THEN
+        NEW.blocked_until = NULL;
+        NEW.verification_attempts = 0;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+```sql
+CREATE TRIGGER trigger_auto_unblock_user
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_unblock_user();
+```
+    
 ## Функция проверки логина администратора
 
 ```sql
@@ -516,7 +951,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-## Поиск товаров по категории и бренду
+## Функция поиска товаров по категории и бренду
 
 ```sql
 CREATE OR REPLACE FUNCTION search_products_by_category_brand(
