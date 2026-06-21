@@ -11,6 +11,5 @@ class Config:
     MIN_AGE = 18
     MAX_VERIFICATION_ATTEMPTS = 3
     BLOCK_MINUTES = 60
-    SPOILER_CATEGORIES = [1, 8, 9]
-    ADMIN_IDS = [xxxxxxxxx]
+    ADMIN_IDS = [xxxx]
 config = Config()
