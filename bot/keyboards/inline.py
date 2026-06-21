@@ -1,6 +1,23 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+def get_main_menu_keyboard():
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🛍️ Каталог",
+                callback_data="main_catalog"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📞 Контакты",
+                callback_data="main_contacts"
+            )
+        ]
+    ])
+    return keyboard
+
 def get_terms_keyboard():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -34,8 +51,12 @@ def get_category_keyboard(categories: list, prefix: str = "cat"):
     for cat in categories:
         builder.button(
             text=cat['name'],
-            callback_data=f"{prefix}_{cat['id']}")
-    builder.adjust(2)
+            callback_data=f"{prefix}_{cat['id']}"
+        )
+    builder.button(
+        text="🔙 Главное меню",
+        callback_data="main_menu"
+    )
     return builder.as_markup()
 
 def get_product_keyboard():
@@ -45,30 +66,40 @@ def get_product_keyboard():
                 text="🔙 Назад в каталог",
                 callback_data="back_to_catalog"
             )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🏠 Главное меню",
+                callback_data="main_menu"
+            )
         ]
     ])
     return keyboard
 
-
-###
-def get_admin_keyboard():
+def get_contacts_keyboard():
+    """Клавиатура для страницы контактов"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
-                text="📦 Управление товарами",
-                callback_data="admin_products"
+                text="🏠 Главное меню",
+                callback_data="main_menu"
+            )
+        ]
+    ])
+    return keyboard
+
+def get_catalog_back_keyboard():
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🔙 Вернуться в каталог",
+                callback_data="back_to_catalog"
             )
         ],
         [
             InlineKeyboardButton(
-                text="📊 Статистика",
-                callback_data="admin_stats"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="👥 Пользователи",
-                callback_data="admin_users"
+                text="🏠 Главное меню",
+                callback_data="main_menu"
             )
         ]
     ])
