@@ -5,12 +5,43 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <AssemblyTitle>Администрирование</AssemblyTitle>
+    <AssemblyTitle>Администрирование магазина</AssemblyTitle>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="7.0.6" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Controls\ThemeManager.cs" />
+    <Compile Include="Controls\ModernButton.cs" />
+    <Compile Include="Controls\ModernDataGridView.cs" />
+    <Compile Include="Controls\ModernTextBox.cs" />
+    <Compile Include="Utils\Helpers.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Forms\LoginForm.cs" />
+    <Compile Include="Forms\MainForm.cs" />
+    <Compile Include="Forms\DashboardForm.cs" />
+    <Compile Include="Forms\ProductsForm.cs" />
+    <Compile Include="Forms\CategoriesForm.cs" />
+    <Compile Include="Forms\BrandsForm.cs" />
+    <Compile Include="Forms\UsersForm.cs" />
+    <Compile Include="Forms\AdminsForm.cs" />
+    <Compile Include="Forms\LogsForm.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Database\DatabaseHelper.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Models\Admin.cs" />
+    <Compile Include="Models\Category.cs" />
+    <Compile Include="Models\Brand.cs" />
+    <Compile Include="Models\User.cs" />
+    <Compile Include="Models\Product.cs" />
   </ItemGroup>
 
 </Project>
