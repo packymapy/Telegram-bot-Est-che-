@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
 from database.db import Database
-from keyboards.inline import (get_terms_keyboard, get_retry_keyboard, get_category_keyboard)
+from keyboards.inline import (get_terms_keyboard, get_retry_keyboard, get_main_menu_keyboard)
 router = Router()
 
 class AgeVerification(StatesGroup):
@@ -12,6 +12,7 @@ class AgeVerification(StatesGroup):
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext, db: Database):
+    """Обработчик команды /start"""
     user_id = message.from_user.id
     await db.create_user_if_not_exists(
         tg_id=user_id,
@@ -19,45 +20,44 @@ async def cmd_start(message: types.Message, state: FSMContext, db: Database):
         last_name=message.from_user.last_name,
         username=message.from_user.username)
     can_access, reason, age_verified, agreed_to_terms, is_blocked, attempts_left, block_until, age = await db.check_user_access(user_id)
-    welcome_text = f"""
-👋 Привет, {message.from_user.first_name}!
-
-Добро пожаловать в "Есть Чё?"!
-
-Для получения доступа к каталогу необходимо:
-1️⃣ Подтвердить ваш возраст (18+)
-2️⃣ Принять условия использования
-    """
     if can_access:
-        categories = await db.get_categories()
         await message.answer(
             f"✅ Добро пожаловать, {message.from_user.first_name}!",
-            reply_markup=get_category_keyboard(categories))
+            reply_markup=get_main_menu_keyboard())
         return
     if is_blocked and block_until:
         minutes_left = int((block_until - datetime.now()).total_seconds() / 60) + 1
         await message.answer(
             f"🔒 Аккаунт заблокирован до {block_until.strftime('%H:%M')}\n"
-            f"⏳ Осталось ещё {minutes_left}\n\n"
+            f"⏳ До разблокировки осталось {minutes_left}\n\n"
             f"Причина: {reason}")
         return
     if agreed_to_terms and not age_verified:
         await message.answer(
-            "Вы уже приняли условия использования.\n\n"
+            "📋 Вы уже приняли условия использования.\n\n"
             "Теперь укажите вашу дату рождения в формате ДД.ММ.ГГГГ\n"
             "Например: 01.07.2006")
         await state.set_state(AgeVerification.waiting_birth_date)
         return
     if attempts_left <= 0:
         await message.answer(
-            "Вы превысили допустимое количество попыток.\n"
+            "🔒 Вы превысили допустимое количество попыток.\n"
             "Аккаунт заблокирован на 60 минут.\n\n"
             "Попробуйте позже.")
         return
-    await message.answer(
-        f"{welcome_text}\n\n"
-        f"📅 Пожалуйста, введите вашу дату рождения в формате ДД.ММ.ГГГГ:\n"
-        f"Пример: 01.07.2006")
+    welcome_text = f"""
+👋 Привет, {message.from_user.first_name}!
+
+Добро пожаловать в ""Есть Чё?!
+
+Для получения доступа к каталогу необходимо:
+1️⃣ Подтвердить ваш возраст (18+)
+2️⃣ Принять условия использования
+
+📅 Пожалуйста, введите вашу дату рождения в формате ДД.ММ.ГГГГ:
+Пример: 01.07.2006
+    """
+    await message.answer(welcome_text)
     await state.set_state(AgeVerification.waiting_birth_date)
 
 @router.message(AgeVerification.waiting_birth_date)
@@ -67,19 +67,18 @@ async def process_birth_date(message: types.Message, state: FSMContext, db: Data
         birth_date = datetime.strptime(message.text.strip(), "%d.%m.%Y").date()
     except ValueError:
         await message.answer(
-            "Неверный формат даты!\n\n"
+            "❌ Неверный формат даты!\n\n"
             "Пожалуйста, введите дату в формате ДД.ММ.ГГГГ\n"
             "Пример: 01.07.2006")
         return
     if birth_date > datetime.now().date():
         await message.answer(
-            "Неверный формат даты!\n\n"
+            "❌ Дата рождения не может быть в будущем)\n\n"
             "Пожалуйста, введите корректную дату.")
         return
-    
     if birth_date < datetime.now().replace(year=datetime.now().year - 100).date():
         await message.answer(
-            "Похоже, вы слишком стары для этого бота)\n"
+            "❌ Похоже, вы слишком стары для этого бота 😄\n"
             "Пожалуйста, введите корректную дату.")
         return
     success, msg, is_adult = await db.set_birth_date(user_id, birth_date)
@@ -109,7 +108,7 @@ async def process_birth_date(message: types.Message, state: FSMContext, db: Data
     """
     await message.answer(
         terms_text,
-        parse_mode="MarkdownV2",
+        parse_mode="Markdown",
         reply_markup=get_terms_keyboard())
     await state.clear()
 
@@ -122,14 +121,12 @@ async def accept_terms(callback: types.CallbackQuery, db: Database):
         return
     await callback.message.edit_text(
         "✅ **Условия приняты!**\n\n"
-        "🎉 Добро пожаловать в "Есть Чё?"!\n"
-        "Теперь вы можете пользоваться каталогом.",
+        "🎉 Добро пожаловать в магазин!",
         parse_mode="Markdown")
-    categories = await db.get_categories()
     await callback.message.answer(
-        "📂 Откройте каталог: /catalog\n"
-        "🔍 Или воспользуйтесь поиском: /search",
-        reply_markup=get_category_keyboard(categories))
+        "🏠 **Главное меню**\n\nВыберите действие:",
+        parse_mode="Markdown",
+        reply_markup=get_main_menu_keyboard())
     await callback.answer()
 
 @router.callback_query(F.data == "terms_decline")
