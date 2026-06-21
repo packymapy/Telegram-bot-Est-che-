@@ -4,15 +4,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
 from database.db import Database
-from keyboards.inline import (get_terms_keyboard, get_retry_keyboard, get_main_menu_keyboard)
+from keyboards.inline import (get_terms_keyboard, get_retry_keyboard, get_main_menu_keyboard, get_city_keyboard)
 router = Router()
 
 class AgeVerification(StatesGroup):
     waiting_birth_date = State()
+    waiting_city = State()
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext, db: Database):
-    """Обработчик команды /start"""
     user_id = message.from_user.id
     await db.create_user_if_not_exists(
         tg_id=user_id,
@@ -21,15 +21,17 @@ async def cmd_start(message: types.Message, state: FSMContext, db: Database):
         username=message.from_user.username)
     can_access, reason, age_verified, agreed_to_terms, is_blocked, attempts_left, block_until, age = await db.check_user_access(user_id)
     if can_access:
+        user_city = await db.get_user_city(user_id)
+        city_text = f" (г. {user_city})" if user_city else ""
         await message.answer(
-            f"✅ Добро пожаловать, {message.from_user.first_name}!",
+            f"✅ Добро пожаловать, {message.from_user.first_name}!{city_text}",
             reply_markup=get_main_menu_keyboard())
         return
     if is_blocked and block_until:
         minutes_left = int((block_until - datetime.now()).total_seconds() / 60) + 1
         await message.answer(
             f"🔒 Аккаунт заблокирован до {block_until.strftime('%H:%M')}\n"
-            f"⏳ До разблокировки осталось {minutes_left}\n\n"
+            f"⏳ Осталось минут: {minutes_left}\n\n"
             f"Причина: {reason}")
         return
     if agreed_to_terms and not age_verified:
@@ -48,7 +50,7 @@ async def cmd_start(message: types.Message, state: FSMContext, db: Database):
     welcome_text = f"""
 👋 Привет, {message.from_user.first_name}!
 
-Добро пожаловать в ""Есть Чё?!
+Добро пожаловать в наш магазин!
 
 Для получения доступа к каталогу необходимо:
 1️⃣ Подтвердить ваш возраст (18+)
@@ -73,7 +75,7 @@ async def process_birth_date(message: types.Message, state: FSMContext, db: Data
         return
     if birth_date > datetime.now().date():
         await message.answer(
-            "❌ Дата рождения не может быть в будущем)\n\n"
+            "❌ Дата рождения не может быть в будущем!\n\n"
             "Пожалуйста, введите корректную дату.")
         return
     if birth_date < datetime.now().replace(year=datetime.now().year - 100).date():
@@ -113,20 +115,61 @@ async def process_birth_date(message: types.Message, state: FSMContext, db: Data
     await state.clear()
 
 @router.callback_query(F.data == "terms_accept")
-async def accept_terms(callback: types.CallbackQuery, db: Database):
+async def accept_terms(callback: types.CallbackQuery, state: FSMContext, db: Database):
     user_id = callback.from_user.id
     success, message = await db.accept_terms(user_id)
     if not success:
         await callback.answer(message, show_alert=True)
         return
+    user_city = await db.get_user_city(user_id)
+    if user_city:
+        await callback.message.edit_text(
+            f"✅ **Условия приняты!**\n\n"
+            f"🎉 Добро пожаловать в магазин!\n"
+            f"📍 Ваш город: {user_city}",
+            parse_mode="Markdown")
+        await callback.message.answer(
+            "🏠 **Главное меню**\n\nВыберите действие:",
+            parse_mode="Markdown",
+            reply_markup=get_main_menu_keyboard())
+    else:
+        cities = await db.get_cities()
+        if not cities:
+            await callback.message.edit_text(
+                "✅ **Условия приняты!**\n\n"
+                "🎉 Добро пожаловать в магазин!",
+                parse_mode="Markdown")
+            await callback.message.answer(
+                "🏠 **Главное меню**\n\nВыберите действие:",
+                parse_mode="Markdown",
+                reply_markup=get_main_menu_keyboard())
+        else:
+            await callback.message.edit_text(
+                "✅ **Условия приняты!**\n\n"
+                "📍 Последний вопрос - из какого вы города?\n\n"
+                "Выберите ваш город из списка:",
+                parse_mode="Markdown",
+                reply_markup=get_city_keyboard(cities))
+            await state.set_state(AgeVerification.waiting_city)
+    await callback.answer()
+    
+@router.callback_query(F.data.startswith("city_"))
+async def select_city(callback: types.CallbackQuery, state: FSMContext, db: Database):
+    user_id = callback.from_user.id
+    city_id = int(callback.data.split("_")[1])
+    await db.set_user_city(user_id, city_id)
+    cities = await db.get_cities()
+    city_name = next((c['name'] for c in cities if c['id'] == city_id), "Город")
     await callback.message.edit_text(
-        "✅ **Условия приняты!**\n\n"
-        "🎉 Добро пожаловать в магазин!",
+        f"✅ **Отлично!**\n\n"
+        f"📍 Ваш город: {city_name}\n\n"
+        f"🎉 Добро пожаловать в магазин!",
         parse_mode="Markdown")
     await callback.message.answer(
         "🏠 **Главное меню**\n\nВыберите действие:",
         parse_mode="Markdown",
         reply_markup=get_main_menu_keyboard())
+    await state.clear()
     await callback.answer()
 
 @router.callback_query(F.data == "terms_decline")
