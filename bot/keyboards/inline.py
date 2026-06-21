@@ -14,6 +14,12 @@ def get_main_menu_keyboard():
                 text="📞 Контакты",
                 callback_data="main_contacts"
             )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📍 Сменить город",
+                callback_data="change_city"
+            )
         ]
     ])
     return keyboard
@@ -105,3 +111,4 @@ def get_search_keyboard():
         ]
     ])
     return keyboard
+
