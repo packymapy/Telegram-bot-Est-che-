@@ -182,7 +182,6 @@ class Database:
             rows = await conn.fetch(query, category_id)
             return [dict(row) for row in rows]
 
-
     async def get_all_contacts(self) -> List[Dict]:
         query = """
             SELECT 
@@ -198,3 +197,31 @@ class Database:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(query)
             return [dict(row) for row in rows]
+            
+    async def get_cities(self) -> List[Dict]:
+    query = """
+        SELECT id, name 
+        FROM cities 
+        ORDER BY name"""
+    async with self.pool.acquire() as conn:
+        rows = await conn.fetch(query)
+        return [dict(row) for row in rows]
+
+async def set_user_city(self, tg_id: int, city_id: int) -> bool:
+    query = """
+        UPDATE users 
+        SET city_id = $2
+        WHERE tg_id = $1"""
+    async with self.pool.acquire() as conn:
+        result = await conn.execute(query, tg_id, city_id)
+        return result != "UPDATE 0"
+
+async def get_user_city(self, tg_id: int) -> Optional[str]:
+    query = """
+        SELECT c.name 
+        FROM users u
+        LEFT JOIN cities c ON c.id = u.city_id
+        WHERE u.tg_id = $1"""
+    async with self.pool.acquire() as conn:
+        row = await conn.fetchrow(query, tg_id)
+        return row['name'] if row else None
