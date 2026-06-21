@@ -181,3 +181,20 @@ class Database:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(query, category_id)
             return [dict(row) for row in rows]
+
+
+    async def get_all_contacts(self) -> List[Dict]:
+        query = """
+            SELECT 
+                c.id,
+                c.email,
+                c.social_links,
+                c.phones,
+                c.addresses,
+                ci.name as city_name
+            FROM contacts c
+            JOIN cities ci ON ci.id = c.city_id
+            ORDER BY ci.name"""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query)
+            return [dict(row) for row in rows]
