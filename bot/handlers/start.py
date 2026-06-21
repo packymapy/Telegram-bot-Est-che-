@@ -203,3 +203,13 @@ async def retry_verification(callback: types.CallbackQuery, state: FSMContext, d
         "Пример: 01.07.2006")
     await state.set_state(AgeVerification.waiting_birth_date)
     await callback.answer()
+    
+@router.callback_query(F.data == "change_city")
+async def change_city(callback: types.CallbackQuery, state: FSMContext, db: Database):
+    cities = await db.get_cities()
+    await callback.message.edit_text(
+        "**Выберите ваш город**",
+        parse_mode="Markdown",
+        reply_markup=get_city_keyboard(cities))
+    await state.set_state(AgeVerification.waiting_city)
+    await callback.answer()
