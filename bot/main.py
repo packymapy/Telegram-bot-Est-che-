@@ -6,7 +6,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from config import config
 from database.db import Database
-from handlers import (start_router, catalog_router, product_router, search_router, admin_router)
+from handlers import (start_router, catalog_router, product_router, search_router)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -35,7 +35,6 @@ async def main():
     dp.include_router(catalog_router)
     dp.include_router(product_router)
     dp.include_router(search_router)
-    dp.include_router(admin_router)
     try:
         await bot.delete_webhook(drop_pending_updates=True)
         logger.info("Бот запущен")
