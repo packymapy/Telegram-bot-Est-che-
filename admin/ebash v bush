@@ -1,0 +1,9 @@
+dotnet new winforms -n AdminApp -f net6.0-windows
+
+cd AdminApp
+
+dotnet add package Npgsql
+dotnet add package Newtonsoft.Json
+
+
+dotnet publish -c Release -r win-x64 --self-contained false
