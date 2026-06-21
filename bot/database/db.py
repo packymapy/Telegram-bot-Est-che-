@@ -5,7 +5,7 @@ from datetime import datetime, date
 class Database:
     def __init__(self, pool: asyncpg.Pool):
         self.pool = pool
-      
+        
     async def create_user_if_not_exists(
         self, 
         tg_id: int, 
@@ -61,7 +61,7 @@ class Database:
             if row:
                 return row['success'], row['message'], row['is_adult']
             return False, "Ошибка", False
-
+    
     async def accept_terms(self, tg_id: int) -> tuple:
         query = "SELECT * FROM accept_terms($1)"
         async with self.pool.acquire() as conn:
@@ -83,8 +83,15 @@ class Database:
         async with self.pool.acquire() as conn:
             return await conn.fetchval(query, tg_id)
     
+    async def is_admin(self, tg_id: int) -> bool:
+        query = """
+            SELECT EXISTS (
+                SELECT 1 FROM admins 
+                WHERE login = $1::TEXT AND is_active = true AND is_locked = false)"""
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval(query, str(tg_id))
+    
     async def get_categories(self) -> List[Dict]:
-        """Получает все категории"""
         query = """
             SELECT id, name, sort_order 
             FROM categories 
