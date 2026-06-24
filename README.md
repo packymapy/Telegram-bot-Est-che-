@@ -8,6 +8,6 @@
 
 ### Конечный вариант тестовых данных - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/test_data.md)
 
-### Конечный вариант py кода для бота - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/bot)
+### Конечный вариант Python кода для бота - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/bot)
 
 ### Конечный вариант C# кода для админки - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/admin)
