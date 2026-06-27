@@ -11,3 +11,5 @@
 ### Python код для бота - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/bot)
 
 ### C# код для админки - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/admin)
+
+### Python код с тестовым запуском - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/create.py)
