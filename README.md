@@ -2,12 +2,12 @@
 
 <br>
 
-### Конечный вариант таблиц - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/create_tables.md)
+### Таблицы - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/create_tables.md)
 
-### Конечный вариант логик взаимодействий - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/interconnection_logic.md)
+### Логика взаимодействий - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/interconnection_logic.md)
 
-### Конечный вариант тестовых данных - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/test_data.md)
+### Тестовые данные - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/blob/main/test_data.md)
 
-### Конечный вариант Python кода для бота - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/bot)
+### Python код для бота - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/bot)
 
-### Конечный вариант C# кода для админки - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/admin)
+### C# код для админки - [файл](https://github.com/packymapy/Telegram-bot-Est-che-/tree/main/admin)
