@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'port': os.getenv('DB_PORT', '5432'),
-    'database': os.getenv('DB_NAME', 'shop_db'),
-    'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', 'password')}
+    'host': os.getenv('DB_HOST', 'xxxx'),
+    'port': os.getenv('DB_PORT', 'xxxx'),
+    'database': os.getenv('DB_NAME', 'xxxx'),
+    'user': os.getenv('DB_USER', 'xxxx'),
+    'password': os.getenv('DB_PASSWORD', 'xxxx')}
 
 CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS categories (
